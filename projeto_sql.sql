@@ -307,3 +307,211 @@ SELECT
 	COUNT( DISTINCT product_id  ) AS produtos
 FROM products p
 GROUP BY product_category_name
+
+--------------------------------------- SQL Intermediário --------------------------------------
+-------------------------------- União de Tabelas (INNER JOIN) ---------------------------------
+
+-- 1. Gerar uma tabela de dados com 10 linhas, contendo o id do pedido, o id do cliente, o status do pedido, o id do produto e o preço do produto.
+
+SELECT 
+	o.order_id ,
+	o.customer_id ,
+	o.order_status ,
+	oi.product_id, 
+	oi.price 
+FROM orders o INNER JOIN order_items oi ON ( oi.order_id = o.order_id )
+LIMIT 10;
+
+-- 2. Gerar uma tabela de dados com 20 linhas, contendo o id do pedido, o estado do cliente, a cidade do cliente, o status do pedido, o id do produto e o preço do produto, somente para clientes do estado de São Paulo
+
+SELECT 
+	o.order_id ,
+	c.customer_state ,
+	c.customer_city,
+	o.order_status ,
+	oi.product_id, 
+	oi.price 
+FROM orders o INNER JOIN order_items oi ON ( oi.order_id = o.order_id )
+              INNER JOIN customer c     ON ( c.customer_id = o.customer_id )
+WHERE c.customer_state = 'SP'
+LIMIT 20;
+
+-- 3. Gerar uma tabela de dados com 50 linhas, contendo o id do pedido, o estado  e a cidade do cliente, o status do pedido, o nome da categoria do produto e o preço do produto, somente para pedidos com o status igual a cancelado.
+-- Verificar todas as opções da coluna 'order_status'
+SELECT
+	DISTINCT o.order_status  
+FROM orders o
+
+-- Resposta da pergunta de negócio
+SELECT 
+	o.order_id ,
+	c.customer_state ,
+	c.customer_city,
+	o.order_status ,
+	p.product_category_name ,
+	oi.price 
+FROM orders o INNER JOIN order_items oi ON ( oi.order_id = o.order_id )
+              INNER JOIN customer c     ON ( c.customer_id = o.customer_id )
+              INNER JOIN products p     ON ( p.product_id = oi.product_id )
+WHERE o.order_status = 'canceled'
+LIMIT 50;
+
+-- 4. Gerar uma tabela de dados com 80 linhas, contendo o id do pedido, o estado e a cidade do cliente, o status do pedido, o nome da categoria do produto, o preço do produto, a cidade e o estado do vendedor e a data de aprovação do pedido, somente para os pedidos aprovadas a partir do dia 16 de Setembro de 2016.
+
+SELECT 
+	o.order_id ,
+	c.customer_state ,
+	c.customer_city,
+	o.order_status ,
+	p.product_category_name ,
+	oi.price,
+	s.seller_city,
+	s.seller_state,
+	o.order_approved_at 
+FROM orders o INNER JOIN order_items oi ON ( oi.order_id = o.order_id )
+              INNER JOIN customer c     ON ( c.customer_id = o.customer_id )
+              INNER JOIN products p     ON ( p.product_id = oi.product_id )
+              INNER JOIN sellers s       ON ( s.seller_id = oi.seller_id )
+WHERE o.order_approved_at > '2016-09-16 00:00:00'
+LIMIT 80;
+
+-- 5. Gerar uma tabela de dados com 10 linhas, contendo o id do pedido, o estado e a cidade do cliente, o status do pedido, o nome da categoria do produto, o preço do produto, a cidade e o estado do vendedor, a data de aprovação do pedido e o tipo de pagamento, somente para o tipo de pagamento igual a boleto.
+-- Valores único de pagamento
+
+SELECT
+	DISTINCT op.payment_type  
+FROM order_payments op
+
+-- Resposta da pergunta de negócio
+SELECT 
+	o.order_id ,
+	c.customer_state ,
+	c.customer_city,
+	o.order_status ,
+	p.product_category_name ,
+	oi.price,
+	s.seller_city,
+	s.seller_state,
+	o.order_approved_at,
+	op.payment_type 
+FROM orders o INNER JOIN order_items oi 	ON ( oi.order_id = o.order_id )
+              INNER JOIN customer c     	ON ( c.customer_id = o.customer_id )
+              INNER JOIN products p     	ON ( p.product_id = oi.product_id )
+              INNER JOIN sellers s      	ON ( s.seller_id = oi.seller_id )
+              INNER JOIN order_payments op  ON ( op.order_id = o.order_id )
+WHERE op.payment_type = 'boleto'
+LIMIT 10;
+
+-- 6. Gerar uma tabela de dados com 70 linhas, contendo o id do pedido, o estado e a cidade do cliente, o status do pedido, o nome da categoria do produto, o preço do produto, a cidade e o estado do vendedor, a data de aprovação do pedido, tipo de pagamento e a nota de avaliação do produto, somente para os pedidos com a nota de avaliação do produto igual a 1.
+
+SELECT 
+	o.order_id ,
+	c.customer_state ,
+	c.customer_city,
+	o.order_status ,
+	p.product_category_name ,
+	oi.price,
+	s.seller_city,
+	s.seller_state,
+	o.order_approved_at,
+	op.payment_type ,
+	or2.review_score 
+FROM orders o INNER JOIN order_items oi 	ON ( oi.order_id = o.order_id )
+              INNER JOIN customer c     	ON ( c.customer_id = o.customer_id )
+              INNER JOIN products p     	ON ( p.product_id = oi.product_id )
+              INNER JOIN sellers s      	ON ( s.seller_id = oi.seller_id )
+              INNER JOIN order_payments op  ON ( op.order_id = o.order_id )
+              INNER JOIN order_reviews or2  ON ( or2.order_id = o.order_id )
+WHERE or2.review_score = 1
+LIMIT 70;
+
+-------------------------------- União de Tabelas (LEFT JOIN) ---------------------------------
+
+-- 1. Gerar uma tabela de dados com 20 linhas e contendo as seguintes colunas:  1) Id do pedido, 2) status do pedido, 3) id do produto, 4) categoria do produto, 5) avaliação do pedido, 6) valor do pagamento, 7) tipo do pagamento, 8) cidade do vendedor, 9) latitude e longitude da cidade do vendedor.
+
+SELECT 
+	o.order_id,
+	o.order_status,
+	oi.product_id,
+	p.product_category_name,
+	or2.review_score,
+	op.payment_value,
+	op.payment_type,
+	s.seller_city,
+	g.geolocation_lat, 
+	g.geolocation_lng 
+FROM orders o LEFT JOIN order_items oi    ON ( oi.order_id = o.order_id )
+			  LEFT JOIN order_reviews or2 ON ( or2.order_id = o.order_id )
+			  LEFT JOIN order_payments op ON ( op.order_id = o.order_id )
+			  LEFT JOIN products p        ON ( p.product_id = oi.product_id )
+			  LEFT JOIN sellers s         ON ( s.seller_id = oi.seller_id )
+			  LEFT JOIN geolocation g     ON ( g.geolocation_zip_code_prefix = s.seller_zip_code_prefix )
+LIMIT 20;
+
+-- 2. Quantos tipos de pagamentos foram usados pelo cliente para pagar o pedido 'e481f51cbdc54678b7cc49136f2d6af7’
+
+SELECT 
+	o.order_id,
+	o.order_status,
+	p.product_category_name,
+	op.payment_type 
+FROM orders o LEFT JOIN order_items oi    ON ( oi.order_id = o.order_id )
+			  LEFT JOIN products p        ON ( p.product_id = oi.product_id )
+			  LEFT JOIN order_payments op ON ( op.order_id = o.order_id )
+WHERE o.order_id = 'e481f51cbdc54678b7cc49136f2d6af7'
+
+# Reposta: 2
+
+-- 3. Quantos pedidos tem mais de 5 items distintos?
+
+SELECT 
+	o.order_id,
+	COUNT( DISTINCT oi.product_id ) as produt_id 
+FROM orders o LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+GROUP BY o.order_id 
+HAVING COUNT( DISTINCT oi.product_id ) > 5
+
+# Resposta: 14 pedidos com mais de 5 items
+
+-- 4. Qual a cardinalidade entre a tabela Pedidos ( orders ) e Avaliações ( reviews )?
+
+SELECT
+	o.order_id,
+	COUNT( or2.review_id ) AS review_id
+FROM orders o LEFT JOIN order_reviews or2 ON ( or2.order_id = o.order_id )
+GROUP BY o.order_id 
+HAVING COUNT( or2.review_id ) > 1
+
+# Resposta: A Cardinalidade é 1:N. Pois existe mais de uma avaliação para o mesmo pedido.
+
+-- 5. Quantos pedidos (orders) não tem nenhuma avaliação (review) ?
+
+SELECT
+	o.order_id,
+	or2.review_score 
+FROM orders o LEFT JOIN order_reviews or2 ON ( or2.order_id = o.order_id )
+WHERE or2.order_id IS NULL
+
+# Resposta: Não há pedidos com nenhuma avaliação.
+
+-- 6. Quais são os top 10 vendedores com mais clientes?
+
+SELECT
+	s.seller_id,
+	COUNT( c.customer_id ) AS customer_id
+FROM orders o  LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+	 		   LEFT JOIN sellers s ON ( s.seller_id = oi.seller_id ) 
+	 		   LEFT JOIN customer c ON ( c.customer_id = o.customer_id)
+GROUP BY s.seller_id 
+ORDER BY customer_id DESC
+LIMIT 10;
+
+-- 7. Quantos pedidos (orders) não possuem nenhum produto (products) ?
+
+SELECT
+	COUNT( o.order_id )
+FROM orders o  LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+			   LEFT JOIN products p     ON ( p.product_id = oi.product_id )
+WHERE p.product_id IS NULL
+
+# Resposta: 775 pedidos não possuem nenhum produto
