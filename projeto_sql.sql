@@ -542,86 +542,43 @@ WHERE op.payment_type = "boleto"
 -- 3. Cria uma tabela que mostre a média de avaliações por dia, a média de preço por dia, a soma dos preços por dia, o preço mínimo por dia, o número de pedidos por dia e o número de clientes únicos que compraram no dia.
 
 SELECT 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```sql
-# Reposta: 19.784 pedidos do tipo boleto
-SELECT 
-	COUNT( o.order_id ) AS order_id
-FROM orders o
-WHERE o.order_id IN ( SELECT DISTINCT op.order_id FROM order_payments 
-op WHERE op.payment_type = 'boleto' )
-```
-
-### 2. Refaça o exercício 01 usando união de tabelas.
-
-```sql
-# Reposta: 19.784 pedidos do tipo boleto
-
-SELECT 
-	COUNT( o.order_id ) AS order_id 
-FROM orders o LEFT JOIN order_payments op ON ( op.order_id = o.order_id )
-WHERE op.payment_type = 'boleto'
-```
-
-### 3. Cria uma tabela que mostre a média de avaliações por dia, a média de preço por dia, a soma dos preços por dia, o preço mínimo por dia, o número de pedidos por dia e o número de clientes únicos que compraram no dia.
-
-```sql
-SELECT  t1.date_
-       ,t1.avg_review
-       ,t2.avg_price
-       ,t2.sum_price
-       ,t2.min_price
-       ,t3.pedido_por_dia
-       ,t3.clientes_unicos
-FROM
+	c1.data ,
+	c1.avg_review ,
+	c2.avg_price ,
+	c2.sum_price ,
+	c2.min_price ,
+	c3.num_pedidos ,
+	c3.cliente_unicos 
+FROM 
 (
-	SELECT  DATE( review_creation_date ) AS date_
-	       ,AVG( review_score )          AS avg_review
-	FROM order_reviews or2
-	GROUP BY  DATE( review_creation_date )
-) AS t1
-LEFT JOIN
+SELECT
+	DATE( orv.review_creation_date ) AS data,
+	AVG( orv.review_score ) AS avg_review
+FROM order_reviews orv
+GROUP BY DATE( orv.review_creation_date )
+) AS c1
+LEFT JOIN 
 (
-	SELECT  DATE( oi.shipping_limit_date ) AS date_
-	       ,AVG( price )                   AS avg_price
-	       ,SUM( price )                   AS sum_price
-	       ,MIN( price )                   AS min_price
-	FROM order_items oi
-	GROUP BY  DATE( oi.shipping_limit_date )
-) AS t2
-ON ( t2.date_ = t1.date_ )
-LEFT JOIN
+SELECT
+	DATE( oi.shipping_limit_date ) AS date,
+	AVG( oi.price ) AS avg_price,
+	SUM( oi.price ) AS sum_price,
+	MIN( oi.price ) AS min_price
+FROM order_items oi 
+GROUP BY DATE( oi.shipping_limit_date )
+) AS c2 ON ( c1."data" = c2.date )
+LEFT JOIN 
 (
-	SELECT  DATE( o.order_purchase_timestamp ) AS date_
-	       ,COUNT( o.order_id )                AS pedido_por_dia
-	       ,COUNT( DISTINCT o.customer_id )    AS clientes_unicos
-	FROM orders o
-	GROUP BY  DATE( o.order_purchase_timestamp )
-) AS t3
-ON ( t3.date_ = t1.date_ )
-```
+SELECT
+	DATE( o.order_purchase_timestamp ) AS date,
+	COUNT( o.order_id ) AS num_pedidos,
+	COUNT( DISTINCT o.customer_id ) AS cliente_unicos 
+FROM orders o 
+GROUP BY DATE( o.order_purchase_timestamp )
+) AS c3 ON ( c1.data = c3.date )
 
-### 4. Eu gostaria de saber, por categoria, a quantidade  de produtos, o tamanho médio do produto, o tamanho médio da categoria alimentos e o tamanho médio geral.
+-- 4. Eu gostaria de saber, por categoria, a quantidade  de produtos, o tamanho médio do produto, o tamanho médio da categoria alimentos e o tamanho médio geral.
 
-```sql
 SELECT  
     p.product_category_name,
     COUNT(p.product_id) AS produto,
@@ -638,11 +595,8 @@ SELECT
 FROM products p
 GROUP BY p.product_category_name;
 
-```
+-- 5. Qual o nome da categoria de produto com o maior preço de venda? Encontre a categoria do produto somente com Subqueries.
 
-### 5. Qual o nome da categoria de produto com o maior preço de venda? Encontre a categoria do produto somente com Subqueries.
-
-```sql
 SELECT 
 	p.product_category_name
 FROM products p 
@@ -656,4 +610,3 @@ WHERE p.product_id =
 	 	   		MAX( price ) as max_product 
 				 FROM order_items oi 
 			   GROUP BY product_id ) ) )
-```
