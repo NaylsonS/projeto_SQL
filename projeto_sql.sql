@@ -610,3 +610,223 @@ WHERE p.product_id =
 	 	   		MAX( price ) as max_product 
 				 FROM order_items oi 
 			   GROUP BY product_id ) ) )
+			   
+-------------------------------- Operações em colunas ---------------------------------
+------------------------------- CASE, WHEN,THEN e ELSE --------------------------------
+			   
+-- 4.1 Qual o valor da média ponderada das avaliações dos produtos que foram comprados a partir do dia 1 de Janeiro de 2018.
+    
+--    Nota 5 → Peso 0.2
+--    Nota 4 → Peso 0.1
+--    Nota 3 → Peso 0.3
+--    Nota 2 → Peso 0.3
+--    Nota 1 → Peso 0.1
+--    Nota 0 → Peso 0.0
+        
+SELECT 
+            t1.soma_multiplicado_dos_pesos/t1.soma_dos_pesos as media_ponderada
+FROM (SELECT
+      SUM (CASE 
+                WHEN or2.review_score = 5 THEN (or2.review_score * 0.2)
+                WHEN or2.review_score = 4 THEN (or2.review_score * 0.1)
+                WHEN or2.review_score = 3 THEN (or2.review_score * 0.3)
+                WHEN or2.review_score = 2 THEN (or2.review_score * 0.3)
+                WHEN or2.review_score = 1 THEN (or2.review_score * 0.1)
+                ELSE (or2.review_score * 0.0)
+            END) AS soma_multiplicado_dos_pesos,
+      SUM (CASE 
+                WHEN or2.review_score = 5 THEN 0.2
+                WHEN or2.review_score = 4 THEN 0.1
+                WHEN or2.review_score = 3 THEN 0.3
+                WHEN or2.review_score = 2 THEN 0.3
+                WHEN or2.review_score = 1 THEN 0.1
+                ELSE 0.0
+            END) AS soma_dos_pesos
+        FROM order_reviews or2 
+        LEFT JOIN orders o ON (o.order_id = or2.order_id)
+        WHERE o.order_purchase_timestamp >= '2018-01-01') as t1
+-----------
+--Resposta:
+--Média Ponderada: 4.202119830740611
+        
+-- 4.2 Calcule a média ponderada por mês, do exercício anterior
+
+        SELECT
+            t1.mes,
+            t1.soma_multiplicado_dos_pesos/t1.soma_dos_pesos as media_ponderada
+        FROM (SELECT
+            STRFTIME( '%m', or2.review_creation_date ) AS mes, 
+            SUM (CASE 
+                    WHEN or2.review_score = 5 THEN (or2.review_score * 0.2)
+                    WHEN or2.review_score = 4 THEN (or2.review_score * 0.1)
+                    WHEN or2.review_score = 3 THEN (or2.review_score * 0.3)
+                    WHEN or2.review_score = 2 THEN (or2.review_score * 0.3)
+                    WHEN or2.review_score = 1 THEN (or2.review_score * 0.1)
+                    ELSE (or2.review_score * 0.0)
+            END) AS soma_multiplicado_dos_pesos,
+            SUM (CASE 
+                    WHEN or2.review_score = 5 THEN 0.2
+                    WHEN or2.review_score = 4 THEN 0.1
+                    WHEN or2.review_score = 3 THEN 0.3
+                    WHEN or2.review_score = 2 THEN 0.3
+                    WHEN or2.review_score = 1 THEN 0.1
+                    ELSE 0.0
+            END) AS soma_dos_pesos
+        FROM order_reviews or2 
+        LEFT JOIN orders o ON (o.order_id = or2.order_id)
+        WHERE o.order_purchase_timestamp >= '2018-01-01'
+        GROUP BY STRFTIME( '%m', or2.review_creation_date )) as t1
+        
+        -- mes|media_ponderada   |
+        ---+------------------+
+        -- 01 | 4.329291815927252|
+        -- 02 | 4.132080585418737|
+        -- 03 |3.9130339858816674|
+        -- 04 | 4.066600321518793|
+        -- 05 |  4.28381260572185|
+        -- 06 | 4.283732251521298|
+        -- 07 | 4.373758796876507|
+        -- 08 | 4.305569095783573|
+        
+-- 4.3 Selecione os seguintes categorias de produtos: livros técnicos, pet shop, pc gamer, tablets impressão imagem, fashion esports, perfumaria, telefonia, beleza saude, ferramentas jardim.
+    
+-- Calcule o desconto total, o desconto médio, o desconto mínimo, o desconto máximo e quantidade de produtos com desconto, dado pela loja ao reduzir o valor dos produtos da seguinte categoria:
+    
+-- Livros técnicos - 10% de desconto
+-- Pet shop - 20% de desconto
+-- PC gamer - 50% de desconto
+-- Tablets - 90% de desconto
+-- Fashion Esports - 40% de desconto
+-- 4.3.1 Resolução
+        
+        SELECT 
+        	SUM(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_total,
+        	AVG(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_medio,
+        	MIN(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_minimo,
+        	MAX(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_maximo,
+        	COUNT(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS qtde_produtos_desconto
+        FROM (
+        	SELECT 
+        		p.product_category_name,
+        		oi.price,
+        		CASE 
+        			WHEN p.product_category_name = 'livros_tecnicos' THEN oi.price * 0.9
+        			WHEN p.product_category_name = 'pet_shop' THEN oi.price * 0.8
+        			WHEN p.product_category_name = 'pc_gamer' THEN oi.price * 0.5
+        			WHEN p.product_category_name = 'tablets_impressao_imagem' THEN oi.price * 0.1
+        			WHEN p.product_category_name = 'fashion_esports' THEN oi.price * 0.6
+        			ELSE oi.price 
+        		END AS novo_preco,
+        		CASE
+        			WHEN p.product_category_name IN ( 'livros_tecnicos', 'pet_shop', 'pc_gamer',
+        											  'tablets_impressao_imagem', 'fashion_esports') THEN 'alterado'
+        			ELSE 'normal'
+        		END AS status
+        	FROM order_items oi LEFT JOIN products p ON ( p.product_id = oi.product_id )
+        	WHERE p.product_category_name IN ( 'livros_tecnicos', 
+        									   'pet_shop',
+        									   'pc_gamer',
+        									   'tablets_impressao_imagem',
+        									   'fashion_esports', 
+        									   'perfumaria',
+        									   'telefonia',
+        									   'beleza_saude',
+        									   'ferramentas_jardim')
+        )
+        
+        -- desconto_total | 52321.23199999999|
+        -- desconto_medio |2.1542896199612955| 
+        -- desconto_minimo|                 0|     
+        -- desconto_maximo|           800.991|    
+        -- qtde_produtos_desconto|      24287|
+                     
+        
+-- 4.4 Usando o exercícios anterior, crie uma consulta que calcule o desconto total, o desconto médio, o desconto mínimo, o desconto máximo e quantidade de produtos com desconto por categoria
+
+        SELECT 
+        	product_category_name AS categoria,
+        	SUM(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_total,
+        	AVG(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_medio,
+        	MIN(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_minimo,
+        	MAX(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS desconto_maximo,
+        	COUNT(
+        		CASE 
+        			WHEN status = 'alterado' THEN ( price - novo_preco )
+        			ELSE 0 
+        		END
+        		) AS qtde_produtos_desconto
+        FROM (
+        	SELECT 
+        		p.product_category_name,
+        		oi.price,
+        		CASE 
+        			WHEN p.product_category_name = 'livros_tecnicos' THEN oi.price * 0.9
+        			WHEN p.product_category_name = 'pet_shop' THEN oi.price * 0.8
+        			WHEN p.product_category_name = 'pc_gamer' THEN oi.price * 0.5
+        			WHEN p.product_category_name = 'tablets_impressao_imagem' THEN oi.price * 0.1
+        			WHEN p.product_category_name = 'fashion_esports' THEN oi.price * 0.6
+        			ELSE oi.price 
+        		END AS novo_preco,
+        		CASE
+        			WHEN p.product_category_name IN ( 'livros_tecnicos', 'pet_shop', 'pc_gamer',
+        											  'tablets_impressao_imagem', 'fashion_esports') THEN 'alterado'
+        			ELSE 'normal'
+        		END AS status
+        	FROM order_items oi LEFT JOIN products p ON ( p.product_id = oi.product_id )
+        	WHERE p.product_category_name IN ( 'livros_tecnicos', 
+        									   'pet_shop',
+        									   'pc_gamer',
+        									   'tablets_impressao_imagem',
+        									   'fashion_esports', 
+        									   'perfumaria',
+        									   'telefonia',
+        									   'beleza_saude',
+        									   'ferramentas_jardim')
+        )
+        GROUP BY product_category_name;
+
