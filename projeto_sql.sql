@@ -830,3 +830,82 @@ FROM (SELECT
         )
         GROUP BY product_category_name;
 
+-------------------------------- Windowns Function ---------------------------------
+
+-- 1 Cria uma consulta que liste a categoria, o id do produto, o preço e classificação de cada produto dentro da sua categoria, com base no preço no seu preço médio, a partir do dia 01 de Junho de 2018.
+        
+        SELECT 
+        	categoria,	
+        	product_id,
+        	preco,
+        	DENSE_RANK() OVER ( PARTITION BY categoria ORDER BY preco DESC ) AS classificacao
+        FROM (
+        	SELECT 
+        		p.product_id,
+        		p.product_category_name AS categoria,
+        		AVG( oi.price ) AS preco
+        	FROM orders o LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+        				  LEFT JOIN products p     ON ( p.product_id = oi.product_id )
+        				  LEFT JOIN order_reviews or2 ON ( or2.order_id = o.order_id )
+        	WHERE o.order_purchase_timestamp > '2018-06-01 00:00:00'
+        	GROUP BY p.product_id
+        	HAVING p.product_category_name IS NOT NULL
+        )
+
+        
+-- 2 Crie uma consulta que exiba a data de compra, o valor de cada venda e o total acumulado de vendas até aquela data.
+
+        SELECT 
+        	o.order_purchase_timestamp,
+        	oi.price,
+        	SUM( oi.price ) OVER ( ORDER BY o.order_purchase_timestamp ) AS total_acumulado
+        FROM orders o LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+
+        
+-- 3 Crie uma consulta que exiba a data de compra, o valor de cada venda e a média móvel dos últimos três valores de venda incluindo o valor atual
+
+        SELECT 
+        	o.order_purchase_timestamp,
+        	oi.price,
+        	AVG( oi.price ) OVER ( ORDER BY o.order_purchase_timestamp 
+        						   ROWS BETWEEN 2 PRECEDING AND CURRENT ROW ) AS media_movel
+        FROM orders o LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+
+        
+-- 4 Crie uma consulta que lista a data da compra, o número de produtos vendidos e o crescimento das vendas com relação ao dia anterior.
+
+        SELECT
+        	data_venda,
+        	vendas,
+        	vendas - LAG( vendas ) OVER ( ORDER BY data_venda ) AS growth
+        FROM ( 
+        	SELECT 
+        		o.order_purchase_timestamp AS data_venda,
+        		COUNT( p.product_id ) AS vendas
+        	FROM orders o LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+        				  LEFT JOIN products p     ON ( p.product_id = oi.product_id )
+        	GROUP BY o.order_purchase_timestamp 
+        	ORDER BY o.order_purchase_timestamp ASC
+        )
+
+        
+-- 5 Crie uma consulta que exiba o estado do cliente, a categoria, a quantidade de produtos vendidos e o percentual de vendas em relação ao total vendido no estado.
+
+        SELECT
+        	state,
+        	categoria,
+        	produtos,
+        	SUM( produtos) OVER ( PARTITION BY state ) AS total_categoria,
+        	produtos*1.0 / SUM( produtos) OVER ( PARTITION BY state ) AS percentual_vendas
+        FROM ( 
+        	SELECT
+        		c.customer_state AS state,
+        		p.product_category_name AS categoria,
+        		COUNT( oi.product_id ) AS produtos
+        	FROM orders o LEFT JOIN order_items oi ON ( oi.order_id = o.order_id )
+        				  LEFT JOIN products p     ON ( p.product_id = oi.product_id )
+        				  LEFT JOIN customer c ON ( c.customer_id = o.customer_id )
+        	WHERE p.product_category_name IN ( 'beleza_saude', 'brinquedos')
+        	GROUP BY c.customer_state, p.product_category_name  
+        	HAVING p.product_category_name IS NOT NULL
+        )
